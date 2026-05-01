@@ -37,6 +37,11 @@
 <script type="text/babel" src="screens-other.jsx"></script>
 
 <script type="text/babel" data-presets="env,react">
+// Set this to your backend URL to use real scraped data instead of mock data.
+// Leave empty ('') to run in demo mode with generated data.
+// Example: window.API_URL = 'https://your-app.railway.app';
+window.API_URL = '';
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "variant": "civic",
   "dark": true,
@@ -55,6 +60,7 @@ const VARIANT_INFO = {
 };
 
 function App() {
+  const { loading, error } = useOutageData();
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [screen, setScreen] = React.useState('overview');
   const [tab, setTab] = React.useState('live');
@@ -97,6 +103,24 @@ function App() {
 
   return (
     <>
+      {error && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: '#7a2020', color: '#ffd', padding: '8px 16px',
+          fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, textAlign: 'center',
+        }}>
+          API unavailable — showing demo data. ({error})
+        </div>
+      )}
+      {loading && !error && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
+          background: '#1a3a1a', color: '#afd', padding: '8px 16px',
+          fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, textAlign: 'center',
+        }}>
+          Fetching live outage data…
+        </div>
+      )}
       <ChromeWindow
         tabs={[{ title: 'Outage Tracker — AU' }, { title: 'GridLink Status' }, { title: 'BoM Weather' }]}
         activeIndex={0}

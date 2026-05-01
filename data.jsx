@@ -118,7 +118,7 @@ function generateOutages() {
   return rows;
 }
 
-const OUTAGES = generateOutages();
+let OUTAGES = generateOutages();
 
 // Default data sources (user can add/remove via sources screen)
 const DEFAULT_SOURCES = [
@@ -134,4 +134,89 @@ const DEFAULT_SOURCES = [
   { id: 'src-redearth', name: 'RedEarth status page',   type: 'Scrape',  status: 'paused',  lastSync: 3600,records: 1_140 },
 ];
 
-Object.assign(window, { OPERATORS, CAUSES, STATUSES, STATES, SUBURBS_BY_STATE, OUTAGES, DEFAULT_SOURCES });
+// Real provider registry — maps backend scraper IDs to display info
+const REAL_PROVIDERS = [
+  { id: 'energex',       name: 'Energex',       state: 'QLD', customers: 1400000 },
+  { id: 'western_power', name: 'Western Power',  state: 'WA',  customers: 1100000 },
+  { id: 'jemena',        name: 'Jemena',         state: 'VIC', customers:  340000 },
+  { id: 'united_energy', name: 'United Energy',  state: 'VIC', customers:  680000 },
+  { id: 'powercor',      name: 'Powercor',       state: 'VIC', customers:  780000 },
+];
+
+function normaliseApiOutage(row) {
+  const typeMap = { unplanned: 'live', planned: 'planned', restored: 'history' };
+  const startTs = row.startedAt ? new Date(row.startedAt).getTime() : Date.now();
+  const etrTs   = row.estimatedRestoration ? new Date(row.estimatedRestoration).getTime() : Date.now() + 3600_000;
+  return {
+    id:        row.id,
+    type:      typeMap[row.type] || 'live',
+    operator:  row.provider,
+    state:     row.state  || '',
+    suburb:    row.suburb || '',
+    postcode:  row.postcode || '',
+    lat:       row.lat,
+    lng:       row.lng,
+    cause:     row.cause  || 'Unknown',
+    status:    row.status || 'Investigating',
+    customers: row.customersAffected || 0,
+    startedAt: startTs,
+    etr:       etrTs,
+    voltage:   'HV 11kV',
+    crews:     0,
+  };
+}
+
+// Fetches live data from the backend API (set window.API_URL to enable).
+// Falls back to mock data when API_URL is empty or the request fails.
+function useOutageData() {
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError]     = React.useState(null);
+  const [lastUpdated, setLastUpdated] = React.useState(null);
+  const [, forceRender] = React.useReducer(x => x + 1, 0);
+
+  React.useEffect(() => {
+    const apiUrl = (window.API_URL || '').replace(/\/$/, '');
+    if (!apiUrl) return;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [r1, r2, r3] = await Promise.all([
+          fetch(`${apiUrl}/api/outages?type=unplanned&limit=500`),
+          fetch(`${apiUrl}/api/outages?type=planned&limit=200`),
+          fetch(`${apiUrl}/api/outages?type=restored&limit=200`),
+        ]);
+        if (!r1.ok || !r2.ok || !r3.ok) throw new Error('API request failed');
+        const [d1, d2, d3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
+
+        OUTAGES = [
+          ...(d1.data || []).map(normaliseApiOutage),
+          ...(d2.data || []).map(normaliseApiOutage),
+          ...(d3.data || []).map(normaliseApiOutage),
+        ];
+        window.OUTAGES = OUTAGES;
+
+        // Merge real provider metadata into the OPERATORS registry
+        for (const rp of REAL_PROVIDERS) {
+          if (!OPERATORS.find(o => o.id === rp.id)) OPERATORS.push(rp);
+        }
+
+        setLastUpdated(new Date());
+        forceRender();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+    const timerId = setInterval(load, 5 * 60_000);
+    return () => clearInterval(timerId);
+  }, []);
+
+  return { loading, error, lastUpdated };
+}
+
+Object.assign(window, { OPERATORS, CAUSES, STATUSES, STATES, SUBURBS_BY_STATE, OUTAGES, DEFAULT_SOURCES, useOutageData });
