@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Outage Tracker — Australia</title>
+<meta name="viewport" content="width=1440"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #1a1a18; min-height: 100vh; font-family: 'IBM Plex Sans', sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+  button { font-family: inherit; }
+  input, select { font-family: inherit; outline: none; }
+  input:focus, select:focus { border-color: currentColor; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(127,127,127,0.3); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(127,127,127,0.5); }
+  #root { padding: 28px; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="browser-window.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="palettes.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="aus-map.jsx"></script>
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="screen-overview.jsx"></script>
+<script type="text/babel" src="screens-other.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "variant": "civic",
+  "dark": true,
+  "palette": "civic",
+  "weather": false,
+  "density": "compact",
+  "pulse": true
+}/*EDITMODE-END*/;
+
+const VARIANT_INFO = {
+  civic:     { label: 'Civic',     desc: 'Clean, calm, accessible — for the public' },
+  ops:       { label: 'Ops',       desc: 'Coord ticks, dense, monitoring vibe' },
+  editorial: { label: 'Editorial', desc: 'Big type, hatched fills, news-site feel' },
+  cards:     { label: 'Cards',     desc: 'Card grid, breathable, scannable' },
+  mapfirst:  { label: 'Map-first', desc: 'Full-bleed map, side panel for list' },
+};
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [screen, setScreen] = React.useState('overview');
+  const [tab, setTab] = React.useState('live');
+  const [filters, setFilters] = React.useState({ state: '', operator: '', cause: '', status: '', q: '' });
+  const [selected, setSelected] = React.useState(null);
+  const [selectedState, setSelectedState] = React.useState(null);
+
+  const palette = (PALETTES[tweaks.palette] || PALETTES.civic)[tweaks.dark ? 'dark' : 'light'];
+  const variant = tweaks.variant;
+
+  const openIncident = (o) => setSelected(o);
+  const closeIncident = () => setSelected(null);
+
+  // when a state is clicked, switch to region screen
+  const onSelectState = (code) => {
+    setSelectedState(code);
+    setScreen('region');
+  };
+
+  let body;
+  if (screen === 'overview') {
+    body = <OverviewScreen palette={palette} tab={tab} setTab={setTab}
+              filters={filters} setFilters={setFilters}
+              openIncident={openIncident} selected={selected}
+              pulse={tweaks.pulse} weather={tweaks.weather} density={tweaks.density}
+              variant={variant}
+              selectedState={selectedState} setSelectedState={onSelectState}/>;
+  } else if (screen === 'region') {
+    body = <RegionScreen palette={palette}
+              selectedState={selectedState} setSelectedState={setSelectedState}
+              openIncident={openIncident}
+              density={tweaks.density} pulse={tweaks.pulse} weather={tweaks.weather} variant={variant}/>;
+  } else if (screen === 'lookup') {
+    body = <LookupScreen palette={palette} openIncident={openIncident}/>;
+  } else if (screen === 'alerts') {
+    body = <AlertsScreen palette={palette}/>;
+  } else if (screen === 'sources') {
+    body = <SourcesScreen palette={palette}/>;
+  }
+
+  return (
+    <>
+      <ChromeWindow
+        tabs={[{ title: 'Outage Tracker — AU' }, { title: 'GridLink Status' }, { title: 'BoM Weather' }]}
+        activeIndex={0}
+        url="outagetracker.au/dashboard"
+        width={1380} height={860}>
+        <div style={{ display: 'flex', height: '100%', position: 'relative', background: palette.bg, fontFamily: 'IBM Plex Sans, sans-serif' }}
+             data-screen-label={`01 ${screen}`}>
+          <Sidebar screen={screen} setScreen={setScreen} palette={palette} variant={variant}/>
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            {body}
+            {selected && <IncidentPanel outage={selected} onClose={closeIncident} palette={palette}/>}
+          </div>
+        </div>
+      </ChromeWindow>
+
+      <TweaksPanel title="Tweaks" defaultPosition={{ right: 20, top: 20 }}>
+        <TweakSection title="Layout variant">
+          <TweakSelect
+            label="Variant"
+            value={tweaks.variant}
+            onChange={v => setTweak('variant', v)}
+            options={Object.entries(VARIANT_INFO).map(([k, v]) => ({ value: k, label: v.label }))}/>
+          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: '#888', marginTop: -4, marginBottom: 4 }}>
+            {VARIANT_INFO[tweaks.variant]?.desc}
+          </div>
+        </TweakSection>
+        <TweakSection title="Theme">
+          <TweakToggle label="Dark mode" value={tweaks.dark} onChange={v => setTweak('dark', v)}/>
+          <TweakRadio label="Palette" value={tweaks.palette} onChange={v => setTweak('palette', v)}
+            options={[{ value: 'civic', label: 'Civic' }, { value: 'warm', label: 'Warm' }, { value: 'mono', label: 'Mono' }]}/>
+        </TweakSection>
+        <TweakSection title="Map">
+          <TweakToggle label="Weather overlay" value={tweaks.weather} onChange={v => setTweak('weather', v)}/>
+          <TweakToggle label="Live pulse" value={tweaks.pulse} onChange={v => setTweak('pulse', v)}/>
+        </TweakSection>
+        <TweakSection title="Density">
+          <TweakRadio label="Rows" value={tweaks.density} onChange={v => setTweak('density', v)}
+            options={[{ value: 'compact', label: 'Compact' }, { value: 'comfortable', label: 'Comfortable' }]}/>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
