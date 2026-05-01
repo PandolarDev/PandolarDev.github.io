@@ -8,6 +8,8 @@ const SCRAPERS = {
   energex:           require('./energex'),
   ergon:             require('./ergon'),
   powercor:          require('./powercor'),
+  united_energy:     require('./united-energy'),
+  jemena:            require('./jemena'),
   ausnet:            require('./ausnet'),
   western_power:     require('./western-power'),
   sa_power_networks: require('./sa-power-networks'),
