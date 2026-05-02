@@ -120,28 +120,24 @@ function generateOutages() {
 
 let OUTAGES = generateOutages();
 
-// Default data sources (user can add/remove via sources screen)
-const DEFAULT_SOURCES = [
-  { id: 'src-aemo',     name: 'AEMO market notices',    type: 'API',     status: 'live',    lastSync: 38,  records: 14_290 },
-  { id: 'src-gridlink', name: 'GridLink NSW feed',      type: 'GeoJSON', status: 'live',    lastSync: 12,  records: 4_180 },
-  { id: 'src-eastnet',  name: 'Eastern Networks API',   type: 'JSON',    status: 'live',    lastSync: 47,  records: 2_640 },
-  { id: 'src-southpwr', name: 'Southern Power CSV',     type: 'CSV',     status: 'live',    lastSync: 124, records: 6_910 },
-  { id: 'src-metrowat', name: 'MetroWatt webhook',      type: 'Webhook', status: 'live',    lastSync: 8,   records: 1_220 },
-  { id: 'src-sunstate', name: 'SunState Energy feed',   type: 'GeoJSON', status: 'live',    lastSync: 19,  records: 5_090 },
-  { id: 'src-westgrid', name: 'WestGrid utility API',   type: 'API',     status: 'degraded',lastSync: 612, records: 3_810 },
-  { id: 'src-tasline',  name: 'TasLine RSS',            type: 'RSS',     status: 'live',    lastSync: 91,  records: 410 },
-  { id: 'src-bom',      name: 'BoM weather overlay',    type: 'WMS',     status: 'live',    lastSync: 22,  records: 0 },
-  { id: 'src-redearth', name: 'RedEarth status page',   type: 'Scrape',  status: 'paused',  lastSync: 3600,records: 1_140 },
-];
-
 // Real provider registry — maps backend scraper IDs to display info
 const REAL_PROVIDERS = [
-  { id: 'energex',       name: 'Energex',       state: 'QLD', customers: 1400000 },
-  { id: 'western_power', name: 'Western Power',  state: 'WA',  customers: 1100000 },
-  { id: 'jemena',        name: 'Jemena',         state: 'VIC', customers:  340000 },
-  { id: 'united_energy', name: 'United Energy',  state: 'VIC', customers:  680000 },
-  { id: 'powercor',      name: 'Powercor',       state: 'VIC', customers:  780000 },
+  { id: 'ausgrid',           name: 'Ausgrid',           state: 'NSW', customers: 1740000 },
+  { id: 'essential_energy',  name: 'Essential Energy',  state: 'NSW', customers:  895000 },
+  { id: 'energex',           name: 'Energex',           state: 'QLD', customers: 1400000 },
+  { id: 'ergon',             name: 'Ergon Energy',      state: 'QLD', customers:  730000 },
+  { id: 'powercor',          name: 'Powercor',          state: 'VIC', customers:  780000 },
+  { id: 'united_energy',     name: 'United Energy',     state: 'VIC', customers:  680000 },
+  { id: 'jemena',            name: 'Jemena',            state: 'VIC', customers:  340000 },
+  { id: 'ausnet',            name: 'AusNet Services',   state: 'VIC', customers:  720000 },
+  { id: 'western_power',     name: 'Western Power',     state: 'WA',  customers: 1100000 },
+  { id: 'sa_power_networks', name: 'SA Power Networks', state: 'SA',  customers:  890000 },
 ];
+
+// Placeholder sources shown before the API responds
+const DEFAULT_SOURCES = REAL_PROVIDERS.map(p => ({
+  id: p.id, name: p.name, type: 'API', status: 'pending', lastSync: null, records: 0,
+}));
 
 function normaliseApiOutage(row) {
   const typeMap = { unplanned: 'live', planned: 'planned', restored: 'history' };
@@ -219,4 +215,40 @@ function useOutageData() {
   return { loading, error, lastUpdated };
 }
 
-Object.assign(window, { OPERATORS, CAUSES, STATUSES, STATES, SUBURBS_BY_STATE, OUTAGES, DEFAULT_SOURCES, useOutageData });
+// Returns [sources, setSources] — populated from /api/providers when available,
+// falls back to DEFAULT_SOURCES (real provider names, status: pending).
+function useLiveSources() {
+  const [sources, setSources] = React.useState(DEFAULT_SOURCES);
+
+  React.useEffect(() => {
+    const apiUrl = (window.API_URL || '').replace(/\/$/, '');
+    if (!apiUrl) return;
+
+    function load() {
+      const now = Date.now();
+      fetch(`${apiUrl}/api/providers`)
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(({ data }) => {
+          if (!Array.isArray(data) || !data.length) return;
+          setSources(data.map(p => ({
+            id:       p.provider,
+            name:     p.providerName,
+            type:     'API',
+            status:   p.lastError ? 'degraded' : (p.lastSuccessAt ? 'live' : 'pending'),
+            lastSync: p.lastFetchAt ? Math.floor((now - new Date(p.lastFetchAt).getTime()) / 1000) : null,
+            records:  p.outageCount || 0,
+            lastError: p.lastError || null,
+          })));
+        })
+        .catch(() => {});
+    }
+
+    load();
+    const timerId = setInterval(load, 60_000);
+    return () => clearInterval(timerId);
+  }, []);
+
+  return [sources, setSources];
+}
+
+Object.assign(window, { OPERATORS, CAUSES, STATUSES, STATES, SUBURBS_BY_STATE, OUTAGES, DEFAULT_SOURCES, useOutageData, useLiveSources });
