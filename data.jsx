@@ -1,16 +1,16 @@
-// Mock data for the Outage Tracker. Original fictional operator names.
-
 const OPERATORS = [
-  { id: 'gridlink-nsw',  name: 'GridLink NSW',         state: 'NSW', customers: 1820000 },
-  { id: 'eastern-net',   name: 'Eastern Networks',     state: 'NSW', customers: 980000 },
-  { id: 'southern-pwr',  name: 'Southern Power Co.',   state: 'VIC', customers: 1640000 },
-  { id: 'metrowatt',     name: 'MetroWatt Distribution', state: 'VIC', customers: 740000 },
-  { id: 'sunstate-nrg',  name: 'SunState Energy',      state: 'QLD', customers: 1410000 },
-  { id: 'tropline',      name: 'TropLine Networks',    state: 'QLD', customers: 230000 },
-  { id: 'westgrid',      name: 'WestGrid Utility',     state: 'WA',  customers: 1110000 },
-  { id: 'redearth',      name: 'RedEarth Power',       state: 'SA',  customers: 880000 },
-  { id: 'tasline',       name: 'TasLine Energy',       state: 'TAS', customers: 290000 },
-  { id: 'topend',        name: 'TopEnd Grid',          state: 'NT',  customers: 95000 },
+  { id: 'ausgrid',           name: 'Ausgrid',                    state: 'NSW', customers: 1740000 },
+  { id: 'essential_energy',  name: 'Essential Energy',           state: 'NSW', customers:  895000 },
+  { id: 'energex',           name: 'Energex',                    state: 'QLD', customers: 1400000 },
+  { id: 'ergon',             name: 'Ergon Energy',               state: 'QLD', customers:  730000 },
+  { id: 'powercor',          name: 'Powercor',                   state: 'VIC', customers:  780000 },
+  { id: 'united_energy',     name: 'United Energy',              state: 'VIC', customers:  680000 },
+  { id: 'jemena',            name: 'Jemena',                     state: 'VIC', customers:  340000 },
+  { id: 'ausnet',            name: 'AusNet Services',            state: 'VIC', customers:  720000 },
+  { id: 'western_power',     name: 'Western Power',              state: 'WA',  customers: 1100000 },
+  { id: 'sa_power_networks', name: 'SA Power Networks',          state: 'SA',  customers:  890000 },
+  { id: 'tasnetworks',       name: 'TasNetworks',                state: 'TAS', customers:  290000 },
+  { id: 'power_water',       name: 'Power and Water Corporation',state: 'NT',  customers:   95000 },
 ];
 
 const CAUSES = ['Storm', 'Equipment fault', 'Vehicle impact', 'Vegetation', 'Planned works', 'Bushfire', 'Animal contact', 'Unknown'];
@@ -120,22 +120,8 @@ function generateOutages() {
 
 let OUTAGES = generateOutages();
 
-// Real provider registry — maps backend scraper IDs to display info
-const REAL_PROVIDERS = [
-  { id: 'ausgrid',           name: 'Ausgrid',           state: 'NSW', customers: 1740000 },
-  { id: 'essential_energy',  name: 'Essential Energy',  state: 'NSW', customers:  895000 },
-  { id: 'energex',           name: 'Energex',           state: 'QLD', customers: 1400000 },
-  { id: 'ergon',             name: 'Ergon Energy',      state: 'QLD', customers:  730000 },
-  { id: 'powercor',          name: 'Powercor',          state: 'VIC', customers:  780000 },
-  { id: 'united_energy',     name: 'United Energy',     state: 'VIC', customers:  680000 },
-  { id: 'jemena',            name: 'Jemena',            state: 'VIC', customers:  340000 },
-  { id: 'ausnet',            name: 'AusNet Services',   state: 'VIC', customers:  720000 },
-  { id: 'western_power',     name: 'Western Power',     state: 'WA',  customers: 1100000 },
-  { id: 'sa_power_networks', name: 'SA Power Networks', state: 'SA',  customers:  890000 },
-];
-
 // Placeholder sources shown before the API responds
-const DEFAULT_SOURCES = REAL_PROVIDERS.map(p => ({
+const DEFAULT_SOURCES = OPERATORS.map(p => ({
   id: p.id, name: p.name, type: 'API', status: 'pending', lastSync: null, records: 0,
 }));
 
@@ -192,11 +178,6 @@ function useOutageData() {
           ...(d3.data || []).map(normaliseApiOutage),
         ];
         window.OUTAGES = OUTAGES;
-
-        // Merge real provider metadata into the OPERATORS registry
-        for (const rp of REAL_PROVIDERS) {
-          if (!OPERATORS.find(o => o.id === rp.id)) OPERATORS.push(rp);
-        }
 
         setLastUpdated(new Date());
         forceRender();
