@@ -3,6 +3,7 @@
 // ============== REGION ==============
 function RegionScreen({ palette, selectedState, setSelectedState, openIncident, density, pulse, variant }) {
   const code = selectedState || 'NSW';
+  const isMobile = useMobile();
   const stateInfo = STATES.find(s => s.code === code);
   const stateOutages = OUTAGES.filter(o => o.state === code && isCurrentlyActive(o));
   const customers = stateOutages.reduce((a,b) => a + b.customers, 0);
@@ -29,14 +30,14 @@ function RegionScreen({ palette, selectedState, setSelectedState, openIncident, 
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 0, borderBottom: `1px solid ${palette.border}` }}>
-        <Stat label="Active in region" value={stateOutages.length} palette={palette} accent={palette.high}/>
-        <Stat label="Customers affected" value={fmtNum(customers)} palette={palette}/>
-        <Stat label="Operators affected" value={`${opsAffected.size}/${OPERATORS.filter(o => o.state === code).length}`} palette={palette}/>
-        <Stat label="Region uptime 30d" value="99.86%" palette={palette} accent={palette.ok}/>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr', gap: 0, borderBottom: `1px solid ${palette.border}` }}>
+        <Stat label="Active" value={stateOutages.length} palette={palette} accent={palette.high}/>
+        <Stat label="Customers" value={fmtNum(customers)} palette={palette}/>
+        <Stat label="Operators" value={`${opsAffected.size}/${OPERATORS.filter(o => o.state === code).length}`} palette={palette}/>
+        <Stat label="Uptime 30d" value="99.86%" palette={palette} accent={palette.ok}/>
       </div>
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.2fr 1fr', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr', overflow: 'hidden' }}>
         <div style={{ padding: 16, borderRight: `1px solid ${palette.border}`, overflow: 'auto' }}>
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Active outages</div>
           {stateOutages.length === 0
@@ -181,6 +182,7 @@ function LookupScreen({ palette, openIncident }) {
 
 // ============== ALERTS ==============
 function AlertsScreen({ palette }) {
+  const isMobile = useMobile();
   const [form, setForm] = React.useState({
     address: '', email: '', sms: '', threshold: 'any',
     channels: { email: true, sms: false, push: false },
@@ -207,12 +209,12 @@ function AlertsScreen({ palette }) {
   const labelStyle = { fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6, display: 'block' };
 
   return (
-    <div style={{ padding: 32, height: '100%', overflow: 'auto', background: palette.bg }}>
+    <div style={{ padding: isMobile ? 16 : 32, height: '100%', overflow: 'auto', background: palette.bg }}>
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
         <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Alerts</div>
-        <h2 style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 28, fontWeight: 600, color: palette.fg, margin: '6px 0 24px', letterSpacing: '-0.01em' }}>Subscribe to outage notifications.</h2>
+        <h2 style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: isMobile ? 22 : 28, fontWeight: 600, color: palette.fg, margin: '6px 0 24px', letterSpacing: '-0.01em' }}>Subscribe to outage notifications.</h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 1fr', gap: 24 }}>
           <form onSubmit={submit} style={{ border: `1px solid ${palette.border}`, padding: 20, background: palette.surface }}>
             <label style={labelStyle}>Watch address</label>
             <input style={fieldStyle} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Street or postcode"/>
@@ -287,6 +289,7 @@ function AlertsScreen({ palette }) {
 
 // ============== DATA SOURCES ==============
 function SourcesScreen({ palette }) {
+  const isMobile = useMobile();
   const [sources, setSources] = useLiveSources();
   const [adding, setAdding] = React.useState(false);
   const [form, setForm] = React.useState({ name: '', type: 'API', url: '' });
@@ -312,7 +315,7 @@ function SourcesScreen({ palette }) {
   };
 
   return (
-    <div style={{ padding: 32, height: '100%', overflow: 'auto', background: palette.bg }}>
+    <div style={{ padding: isMobile ? 14 : 32, height: '100%', overflow: 'auto', background: palette.bg }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 24 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Data sources</div>
@@ -345,13 +348,43 @@ function SourcesScreen({ palette }) {
       )}
 
       <div style={{ border: `1px solid ${palette.border}`, background: palette.surface }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 110px 110px 130px', gap: 0, padding: '10px 14px', borderBottom: `1px solid ${palette.border}`, background: palette.surfaceAlt }}>
-          {['Source','Type','Status','Last sync','Records','Actions'].map(h => (
-            <span key={h} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
-          ))}
-        </div>
+        {!isMobile && (
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 110px 110px 130px', gap: 0, padding: '10px 14px', borderBottom: `1px solid ${palette.border}`, background: palette.surfaceAlt }}>
+            {['Source','Type','Status','Last sync','Records','Actions'].map(h => (
+              <span key={h} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</span>
+            ))}
+          </div>
+        )}
         {sources.map(s => {
           const statusColor = { live: palette.ok, degraded: palette.med, paused: palette.dim }[s.status];
+          if (isMobile) {
+            return (
+              <div key={s.id} style={{ padding: '12px 14px', borderBottom: `1px solid ${palette.borderSoft}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 14, color: palette.fg, fontWeight: 600 }}>{s.name}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.fg }}>
+                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor }}/>
+                    {s.status}
+                  </span>
+                </div>
+                <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim, marginBottom: 8 }}>
+                  {s.type} · {s.lastSync != null ? `synced ${s.lastSync}s ago` : 'pending'} · {fmtNum(s.records)} records
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => togglePause(s.id)} style={{
+                    fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, padding: '5px 10px',
+                    background: 'transparent', border: `1px solid ${palette.border}`, color: palette.dim,
+                    textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer', borderRadius: 0,
+                  }}>{s.status === 'paused' ? 'resume' : 'pause'}</button>
+                  <button onClick={() => remove(s.id)} style={{
+                    fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, padding: '5px 10px',
+                    background: 'transparent', border: `1px solid ${palette.high}`, color: palette.high,
+                    textTransform: 'uppercase', letterSpacing: '0.08em', cursor: 'pointer', borderRadius: 0,
+                  }}>delete</button>
+                </div>
+              </div>
+            );
+          }
           return (
             <div key={s.id} style={{ display: 'grid', gridTemplateColumns: '2fr 80px 100px 110px 110px 130px', gap: 0, padding: '12px 14px', borderBottom: `1px solid ${palette.borderSoft}`, alignItems: 'center' }}>
               <div>
@@ -388,6 +421,7 @@ function SourcesScreen({ palette }) {
 // ============== INCIDENT DETAIL (slide-over panel) ==============
 function IncidentPanel({ outage, onClose, palette }) {
   if (!outage) return null;
+  const isMobile = useMobile();
   const op = OPERATORS.find(x => x.id === outage.operator);
 
   const events = [
@@ -400,7 +434,8 @@ function IncidentPanel({ outage, onClose, palette }) {
 
   return (
     <div style={{
-      position: 'absolute', top: 0, right: 0, bottom: 0, width: 460,
+      position: 'absolute', top: 0, right: 0, bottom: 0,
+      width: isMobile ? '100%' : 460,
       background: palette.surface, borderLeft: `1px solid ${palette.border}`,
       display: 'flex', flexDirection: 'column', zIndex: 1100,
       boxShadow: `-12px 0 32px ${palette.shadow}`,

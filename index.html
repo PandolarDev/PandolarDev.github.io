@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>Outage Tracker — Australia</title>
-<meta name="viewport" content="width=1440"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,7 +18,10 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(127,127,127,0.3); border-radius: 5px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(127,127,127,0.5); }
-  #root { padding: 0; height: 100vh; overflow: hidden; }
+  #root { padding: 0; height: 100vh; height: 100dvh; overflow: hidden; }
+  @media (max-width: 639px) {
+    ::-webkit-scrollbar { width: 0; height: 0; }
+  }
 </style>
 </head>
 <body>
@@ -63,6 +66,7 @@ const VARIANT_INFO = {
 function App() {
   const { loading, error } = useOutageData();
   const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const isMobile = useMobile();
   const [screen, setScreen] = React.useState('overview');
   const [tab, setTab] = React.useState('live');
   const [filters, setFilters] = React.useState({ state: '', operator: '', cause: '', status: '', q: '' });
@@ -122,13 +126,14 @@ function App() {
           Fetching live outage data…
         </div>
       )}
-      <div style={{ display: 'flex', height: '100vh', position: 'relative', background: palette.bg, fontFamily: 'IBM Plex Sans, sans-serif' }}
+      <div style={{ display: 'flex', height: '100dvh', position: 'relative', background: palette.bg, fontFamily: 'IBM Plex Sans, sans-serif' }}
            data-screen-label={`01 ${screen}`}>
-        <Sidebar screen={screen} setScreen={setScreen} palette={palette} variant={variant}/>
-        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        {!isMobile && <Sidebar screen={screen} setScreen={setScreen} palette={palette} variant={variant}/>}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden', paddingBottom: isMobile ? 56 : 0 }}>
           {body}
           {selected && <IncidentPanel outage={selected} onClose={closeIncident} palette={palette}/>}
         </div>
+        {isMobile && <MobileNav screen={screen} setScreen={setScreen} palette={palette}/>}
       </div>
 
       <TweaksPanel title="Tweaks" defaultPosition={{ right: 20, top: 20 }}>
