@@ -54,7 +54,8 @@ function OverviewScreen({ palette, tab, setTab, filters, setFilters, openInciden
 }
 
 function StandardOverview({ palette, rows, pulse, density, tab, setTab, filters, setFilters, openIncident, selected, setSelectedState, stats, variant }) {
-  const [mapHeight, setMapHeight] = React.useState(300);
+  const isMobile = useMobile();
+  const [mapHeight, setMapHeight] = React.useState(() => window.innerWidth < 640 ? 160 : 300);
   const dragRef = React.useRef(null);
 
   const onDragStart = (e) => {
@@ -77,39 +78,43 @@ function StandardOverview({ palette, rows, pulse, density, tab, setTab, filters,
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* stats strip */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${palette.border}`, background: palette.bg, flexShrink: 0 }}>
-        <Stat label="Active outages" value={stats.liveCount} sub="↑ 4 in last hour" palette={palette} accent={palette.high}/>
-        <Stat label="Customers affected" value={fmtNum(stats.customersAffected)} sub="across 7 states" palette={palette}/>
-        <Stat label="Median ETR" value={`${stats.avgEtr}m`} sub="from now" palette={palette}/>
-        <Stat label="Planned (24h)" value={stats.plannedCount} sub="scheduled works" palette={palette} accent={palette.low}/>
+      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${palette.border}`, background: palette.bg, flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        <Stat label="Active" value={stats.liveCount} sub="outages" palette={palette} accent={palette.high}/>
+        <Stat label="Customers" value={fmtNum(stats.customersAffected)} sub="affected" palette={palette}/>
+        {!isMobile && <Stat label="Median ETR" value={`${stats.avgEtr}m`} sub="from now" palette={palette}/>}
+        {!isMobile && <Stat label="Planned (24h)" value={stats.plannedCount} sub="scheduled works" palette={palette} accent={palette.low}/>}
       </div>
 
       {/* map + side — height controlled by drag handle */}
       <div style={{ display: 'flex', height: mapHeight, flexShrink: 0 }}>
-        <div style={{ flex: 1, padding: 16, background: palette.bg, overflow: 'hidden' }}>
-          <AusMap palette={palette} pulse={pulse} onSelectState={setSelectedState} height={mapHeight - 32}/>
+        <div style={{ flex: 1, padding: isMobile ? 8 : 16, background: palette.bg, overflow: 'hidden' }}>
+          <AusMap palette={palette} pulse={pulse} onSelectState={setSelectedState} height={mapHeight - (isMobile ? 16 : 32)}/>
         </div>
-        <div style={{ width: 280, borderLeft: `1px solid ${palette.border}`, padding: '14px 16px', background: palette.surface, overflow: 'auto' }}>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>By operator · live</div>
-          <OperatorBars palette={palette}/>
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '20px 0 10px' }}>Top causes</div>
-          <CauseBars palette={palette}/>
-        </div>
+        {!isMobile && (
+          <div style={{ width: 280, borderLeft: `1px solid ${palette.border}`, padding: '14px 16px', background: palette.surface, overflow: 'auto' }}>
+            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>By operator · live</div>
+            <OperatorBars palette={palette}/>
+            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '20px 0 10px' }}>Top causes</div>
+            <CauseBars palette={palette}/>
+          </div>
+        )}
       </div>
 
       {/* drag handle */}
-      <div
-        onMouseDown={onDragStart}
-        style={{
-          height: 8, flexShrink: 0, cursor: 'ns-resize',
-          borderTop: `1px solid ${palette.border}`,
-          borderBottom: `1px solid ${palette.border}`,
-          background: palette.surfaceAlt,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <div style={{ width: 36, height: 3, borderRadius: 2, background: palette.gridLine, opacity: 0.7 }}/>
-      </div>
+      {!isMobile && (
+        <div
+          onMouseDown={onDragStart}
+          style={{
+            height: 8, flexShrink: 0, cursor: 'ns-resize',
+            borderTop: `1px solid ${palette.border}`,
+            borderBottom: `1px solid ${palette.border}`,
+            background: palette.surfaceAlt,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div style={{ width: 36, height: 3, borderRadius: 2, background: palette.gridLine, opacity: 0.7 }}/>
+        </div>
+      )}
 
       <TabsHeader tab={tab} setTab={setTab} palette={palette}/>
       <FiltersBar filters={filters} setFilters={setFilters} palette={palette}/>
@@ -124,18 +129,19 @@ function StandardOverview({ palette, rows, pulse, density, tab, setTab, filters,
 }
 
 function EditorialOverview({ palette, rows, pulse, density, tab, setTab, filters, setFilters, openIncident, selected, setSelectedState, stats, variant }) {
+  const isMobile = useMobile();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: palette.bg }}>
-      <div style={{ padding: '32px 32px 24px', borderBottom: `1px solid ${palette.border}` }}>
+      <div style={{ padding: isMobile ? '16px 16px 14px' : '32px 32px 24px', borderBottom: `1px solid ${palette.border}` }}>
         <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{new Date().toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' })} · 14:08 AEDT</div>
-        <h1 style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 56, fontWeight: 600, lineHeight: 1.05, margin: '12px 0 8px', color: palette.fg, letterSpacing: '-0.02em', maxWidth: 800 }}>
+        <h1 style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: isMobile ? 28 : 56, fontWeight: 600, lineHeight: 1.05, margin: '8px 0 6px', color: palette.fg, letterSpacing: '-0.02em' }}>
           {stats.liveCount} active outages affecting {fmtNum(stats.customersAffected)} customers nationwide.
         </h1>
-        <p style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 16, color: palette.dim, maxWidth: 700, lineHeight: 1.5, margin: 0 }}>
+        {!isMobile && <p style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 16, color: palette.dim, maxWidth: 700, lineHeight: 1.5, margin: 0 }}>
           Severe thunderstorm activity along the east coast. Median restoration estimate {stats.avgEtr} minutes. {stats.plannedCount} planned works in the next 24 hours.
-        </p>
+        </p>}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', borderBottom: `1px solid ${palette.border}` }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', borderBottom: `1px solid ${palette.border}` }}>
         <div style={{ padding: 24, borderRight: `1px solid ${palette.border}` }}>
           <AusMap palette={palette} pulse={pulse} onSelectState={setSelectedState}/>
         </div>
@@ -246,6 +252,7 @@ function OutageCard({ o, palette, onOpen, selected }) {
 }
 
 function TableHeader({ palette }) {
+  if (useMobile()) return null;
   const cell = { fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em' };
   return (
     <div style={{

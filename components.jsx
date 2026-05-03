@@ -1,5 +1,15 @@
 // Screens for Outage Tracker. Relies on globals: OPERATORS, OUTAGES, DEFAULT_SOURCES, STATES, AusMap, palette via prop.
 
+function useMobile() {
+  const [mobile, setMobile] = React.useState(() => window.innerWidth < 640);
+  React.useEffect(() => {
+    const h = () => setMobile(window.innerWidth < 640);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return mobile;
+}
+
 const fmtTime = (ms) => {
   const d = new Date(ms);
   const hh = String(d.getHours()).padStart(2,'0');
@@ -48,6 +58,27 @@ function SevBadge({ status, palette }) {
 // ---------- Outage row (compact / comfortable) ----------
 function OutageRow({ o, palette, density, onOpen, selected }) {
   const op = OPERATORS.find(x => x.id === o.operator);
+  const isMobile = useMobile();
+
+  if (isMobile) {
+    return (
+      <div onClick={() => onOpen(o)} style={{
+        padding: '10px 14px', borderBottom: `1px solid ${palette.borderSoft}`,
+        background: selected ? palette.rowSelected : 'transparent', cursor: 'pointer',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+          <span style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 14, fontWeight: 600, color: palette.fg }}>
+            {o.suburb} <span style={{ color: palette.dim, fontWeight: 400, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11 }}>{o.state}</span>
+          </span>
+          <SevBadge status={o.status} palette={palette}/>
+        </div>
+        <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim }}>
+          {op?.name} · {fmtNum(o.customers)} cust · {o.cause}
+        </div>
+      </div>
+    );
+  }
+
   const py = density === 'compact' ? 6 : 10;
   return (
     <div onClick={() => onOpen(o)} style={{
@@ -88,11 +119,37 @@ function Stat({ label, value, sub, palette, accent }) {
 
 // ---------- Filters bar ----------
 function FiltersBar({ filters, setFilters, palette }) {
+  const isMobile = useMobile();
   const fieldStyle = {
     background: palette.surface, color: palette.fg, border: `1px solid ${palette.border}`,
     padding: '6px 10px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 12,
-    borderRadius: 0, height: 32,
+    borderRadius: 0, height: 32, flexShrink: 0,
   };
+
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', gap: 6, padding: '8px 10px', borderBottom: `1px solid ${palette.border}`, background: palette.surfaceAlt, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <select value={filters.state} onChange={e => setFilters({ ...filters, state: e.target.value })} style={{ ...fieldStyle, fontSize: 11 }}>
+          <option value="">All states</option>
+          {STATES.map(s => <option key={s.code} value={s.code}>{s.code}</option>)}
+        </select>
+        <select value={filters.operator} onChange={e => setFilters({ ...filters, operator: e.target.value })} style={{ ...fieldStyle, fontSize: 11, maxWidth: 140 }}>
+          <option value="">All operators</option>
+          {OPERATORS.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+        </select>
+        <input
+          placeholder="suburb / id"
+          value={filters.q}
+          onChange={e => setFilters({ ...filters, q: e.target.value })}
+          style={{ ...fieldStyle, width: 120 }}
+        />
+        {(filters.state || filters.operator || filters.cause || filters.status || filters.q) &&
+          <button onClick={() => setFilters({ state: '', operator: '', cause: '', status: '', q: '' })}
+            style={{ ...fieldStyle, cursor: 'pointer', color: palette.dim }}>✕</button>}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderBottom: `1px solid ${palette.border}`, background: palette.surfaceAlt, alignItems: 'center', flexWrap: 'wrap' }}>
       <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filter</span>
@@ -208,6 +265,41 @@ function Sidebar({ screen, setScreen, palette, variant }) {
   );
 }
 
+// ---------- Mobile bottom nav ----------
+function MobileNav({ screen, setScreen, palette }) {
+  const items = [
+    { id: 'overview', label: 'Live',    glyph: '◐' },
+    { id: 'lookup',   label: 'Lookup',  glyph: '◇' },
+    { id: 'region',   label: 'Region',  glyph: '◭' },
+    { id: 'alerts',   label: 'Alerts',  glyph: '◈' },
+    { id: 'sources',  label: 'Sources', glyph: '◌' },
+  ];
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 2000,
+      background: palette.surface, borderTop: `1px solid ${palette.border}`,
+      display: 'flex', height: 56,
+      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+    }}>
+      {items.map(it => (
+        <button key={it.id} onClick={() => setScreen(it.id)} style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: 2, padding: '4px 0',
+          background: 'none', border: 'none', cursor: 'pointer',
+          borderTop: screen === it.id ? `2px solid ${palette.accent}` : '2px solid transparent',
+          color: screen === it.id ? palette.accent : palette.dim,
+          fontFamily: 'IBM Plex Mono, monospace', fontSize: 9,
+          letterSpacing: '0.04em', textTransform: 'uppercase',
+        }}>
+          <span style={{ fontSize: 17 }}>{it.glyph}</span>
+          <span>{it.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 Object.assign(window, {
+  useMobile, MobileNav,
   SevBadge, OutageRow, Stat, FiltersBar, TabsHeader, Sidebar, applyFilters,
 });
