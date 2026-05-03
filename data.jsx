@@ -9,8 +9,6 @@ const OPERATORS = [
   { id: 'ausnet',            name: 'AusNet Services',            state: 'VIC', customers:  720000 },
   { id: 'western_power',     name: 'Western Power',              state: 'WA',  customers: 1100000 },
   { id: 'sa_power_networks', name: 'SA Power Networks',          state: 'SA',  customers:  890000 },
-  { id: 'tasnetworks',       name: 'TasNetworks',                state: 'TAS', customers:  290000 },
-  { id: 'power_water',       name: 'Power and Water Corporation',state: 'NT',  customers:   95000 },
 ];
 
 const CAUSES = ['Storm', 'Equipment fault', 'Vehicle impact', 'Vegetation', 'Planned works', 'Bushfire', 'Animal contact', 'Unknown'];
@@ -23,8 +21,6 @@ const SUBURBS_BY_STATE = {
   QLD: ['Fortitude Valley','New Farm','South Bank','Toowong','Chermside','Logan','Ipswich','Townsville','Cairns','Mackay','Rockhampton','Gold Coast'],
   WA:  ['Fremantle','Subiaco','Joondalup','Mandurah','Bunbury','Albany','Geraldton','Karratha','Kalgoorlie','Cottesloe'],
   SA:  ['Glenelg','Norwood','Prospect','Port Adelaide','Mount Gambier','Whyalla','Port Augusta','Murray Bridge'],
-  TAS: ['Hobart','Launceston','Devonport','Burnie','Glenorchy','Kingston'],
-  NT:  ['Darwin','Palmerston','Alice Springs','Katherine','Tennant Creek'],
 };
 
 const STATES = [
@@ -33,8 +29,6 @@ const STATES = [
   { code: 'QLD', name: 'Queensland',      tz: 'AEST' },
   { code: 'WA',  name: 'Western Australia', tz: 'AWST' },
   { code: 'SA',  name: 'South Australia', tz: 'ACDT' },
-  { code: 'TAS', name: 'Tasmania',        tz: 'AEDT' },
-  { code: 'NT',  name: 'Northern Territory', tz: 'ACST' },
 ];
 
 // Deterministic pseudo-random for stable mock data
