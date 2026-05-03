@@ -1,7 +1,7 @@
 // Other screens — region detail, lookup, alerts, sources, incident detail panel
 
 // ============== REGION ==============
-function RegionScreen({ palette, selectedState, setSelectedState, openIncident, density, pulse, weather, variant }) {
+function RegionScreen({ palette, selectedState, setSelectedState, openIncident, density, pulse, variant }) {
   const code = selectedState || 'NSW';
   const stateInfo = STATES.find(s => s.code === code);
   const stateOutages = OUTAGES.filter(o => o.state === code && o.type === 'live');

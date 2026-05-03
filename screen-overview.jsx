@@ -1,7 +1,7 @@
 // Outage Tracker — main screens
 
 // ============== OVERVIEW ==============
-function OverviewScreen({ palette, tab, setTab, filters, setFilters, openIncident, selected, pulse, weather, density, variant, selectedState, setSelectedState }) {
+function OverviewScreen({ palette, tab, setTab, filters, setFilters, openIncident, selected, pulse, density, variant, selectedState, setSelectedState }) {
   const allRows = OUTAGES.filter(o => o.type === tab);
   const rows = applyFilters(allRows, filters);
   const liveCount = OUTAGES.filter(o => o.type === 'live').length;
@@ -13,35 +13,35 @@ function OverviewScreen({ palette, tab, setTab, filters, setFilters, openInciden
 
   // Layout variants
   if (variant === 'editorial') {
-    return <EditorialOverview palette={palette} rows={rows} pulse={pulse} weather={weather} density={density}
+    return <EditorialOverview palette={palette} rows={rows} pulse={pulse} density={density}
       tab={tab} setTab={setTab} filters={filters} setFilters={setFilters}
       openIncident={openIncident} selected={selected}
-      selectedState={selectedState} setSelectedState={setSelectedState}
+      setSelectedState={setSelectedState}
       stats={{ liveCount, customersAffected, avgEtr, plannedCount }} variant={variant}/>;
   }
   if (variant === 'cards') {
-    return <CardsOverview palette={palette} rows={rows} pulse={pulse} weather={weather} density={density}
+    return <CardsOverview palette={palette} rows={rows} pulse={pulse} density={density}
       tab={tab} setTab={setTab} filters={filters} setFilters={setFilters}
       openIncident={openIncident} selected={selected}
-      selectedState={selectedState} setSelectedState={setSelectedState}
+      setSelectedState={setSelectedState}
       stats={{ liveCount, customersAffected, avgEtr, plannedCount }} variant={variant}/>;
   }
   if (variant === 'mapfirst') {
-    return <MapFirstOverview palette={palette} rows={rows} pulse={pulse} weather={weather} density={density}
+    return <MapFirstOverview palette={palette} rows={rows} pulse={pulse} density={density}
       tab={tab} setTab={setTab} filters={filters} setFilters={setFilters}
       openIncident={openIncident} selected={selected}
-      selectedState={selectedState} setSelectedState={setSelectedState}
+      setSelectedState={setSelectedState}
       stats={{ liveCount, customersAffected, avgEtr, plannedCount }} variant={variant}/>;
   }
   // default: civic / ops both share the standard layout
-  return <StandardOverview palette={palette} rows={rows} pulse={pulse} weather={weather} density={density}
+  return <StandardOverview palette={palette} rows={rows} pulse={pulse} density={density}
     tab={tab} setTab={setTab} filters={filters} setFilters={setFilters}
     openIncident={openIncident} selected={selected}
-    selectedState={selectedState} setSelectedState={setSelectedState}
+    setSelectedState={setSelectedState}
     stats={{ liveCount, customersAffected, avgEtr, plannedCount }} variant={variant}/>;
 }
 
-function StandardOverview({ palette, rows, pulse, weather, density, tab, setTab, filters, setFilters, openIncident, selected, selectedState, setSelectedState, stats, variant }) {
+function StandardOverview({ palette, rows, pulse, density, tab, setTab, filters, setFilters, openIncident, selected, setSelectedState, stats, variant }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* stats strip */}
@@ -55,8 +55,7 @@ function StandardOverview({ palette, rows, pulse, weather, density, tab, setTab,
       {/* map + side */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${palette.border}` }}>
         <div style={{ flex: 1, padding: 16, background: palette.bg }}>
-          <AusMap palette={palette} pulse={pulse} showWeather={weather} density={density} variant={variant}
-            selectedState={selectedState} onSelectState={setSelectedState}/>
+          <AusMap palette={palette} pulse={pulse} onSelectState={setSelectedState}/>
         </div>
         <div style={{ width: 280, borderLeft: `1px solid ${palette.border}`, padding: '14px 16px', background: palette.surface }}>
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>By operator · live</div>
@@ -78,7 +77,7 @@ function StandardOverview({ palette, rows, pulse, weather, density, tab, setTab,
   );
 }
 
-function EditorialOverview({ palette, rows, pulse, weather, density, tab, setTab, filters, setFilters, openIncident, selected, selectedState, setSelectedState, stats, variant }) {
+function EditorialOverview({ palette, rows, pulse, density, tab, setTab, filters, setFilters, openIncident, selected, setSelectedState, stats, variant }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: palette.bg }}>
       <div style={{ padding: '32px 32px 24px', borderBottom: `1px solid ${palette.border}` }}>
@@ -92,8 +91,7 @@ function EditorialOverview({ palette, rows, pulse, weather, density, tab, setTab
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', borderBottom: `1px solid ${palette.border}` }}>
         <div style={{ padding: 24, borderRight: `1px solid ${palette.border}` }}>
-          <AusMap palette={palette} pulse={pulse} showWeather={weather} density={density} variant={variant}
-            selectedState={selectedState} onSelectState={setSelectedState}/>
+          <AusMap palette={palette} pulse={pulse} onSelectState={setSelectedState}/>
         </div>
         <div style={{ padding: 24 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: palette.border, marginBottom: 20 }}>
@@ -116,7 +114,7 @@ function EditorialOverview({ palette, rows, pulse, weather, density, tab, setTab
   );
 }
 
-function CardsOverview({ palette, rows, pulse, weather, density, tab, setTab, filters, setFilters, openIncident, selected, selectedState, setSelectedState, stats, variant }) {
+function CardsOverview({ palette, rows, pulse, density, tab, setTab, filters, setFilters, openIncident, selected, setSelectedState, stats, variant }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: palette.bg }}>
       <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${palette.border}` }}>
@@ -126,9 +124,7 @@ function CardsOverview({ palette, rows, pulse, weather, density, tab, setTab, fi
         <Stat label="Planned 24h" value={stats.plannedCount} palette={palette} accent={palette.low}/>
       </div>
       <div style={{ padding: 16, borderBottom: `1px solid ${palette.border}` }}>
-        <AusMap palette={palette} pulse={pulse} showWeather={weather} density={density} variant={variant}
-          height={340}
-          selectedState={selectedState} onSelectState={setSelectedState}/>
+        <AusMap palette={palette} pulse={pulse} height={340} onSelectState={setSelectedState}/>
       </div>
       <TabsHeader tab={tab} setTab={setTab} palette={palette}/>
       <FiltersBar filters={filters} setFilters={setFilters} palette={palette}/>
@@ -139,14 +135,12 @@ function CardsOverview({ palette, rows, pulse, weather, density, tab, setTab, fi
   );
 }
 
-function MapFirstOverview({ palette, rows, pulse, weather, density, tab, setTab, filters, setFilters, openIncident, selected, selectedState, setSelectedState, stats, variant }) {
+function MapFirstOverview({ palette, rows, pulse, density, tab, setTab, filters, setFilters, openIncident, selected, setSelectedState, stats, variant }) {
   return (
     <div style={{ display: 'flex', height: '100%', background: palette.bg }}>
       <div style={{ flex: 1, position: 'relative', borderRight: `1px solid ${palette.border}` }}>
         <div style={{ position: 'absolute', inset: 0 }}>
-          <AusMap palette={palette} pulse={pulse} showWeather={weather} density={density} variant={variant}
-            height="100%"
-            selectedState={selectedState} onSelectState={setSelectedState}/>
+          <AusMap palette={palette} pulse={pulse} height="100%" onSelectState={setSelectedState}/>
         </div>
         <div style={{ position: 'absolute', top: 16, left: 16, background: palette.surface, border: `1px solid ${palette.border}`, padding: '12px 14px', minWidth: 260 }}>
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em' }}>National status</div>
