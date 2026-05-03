@@ -142,9 +142,10 @@ function applyFilters(rows, f) {
 
 // ---------- Tabs header ----------
 function TabsHeader({ tab, setTab, palette }) {
+  const now = Date.now();
   const items = [
-    { id: 'live',    label: 'Live',    count: OUTAGES.filter(o => o.type === 'live').length },
-    { id: 'planned', label: 'Planned', count: OUTAGES.filter(o => o.type === 'planned').length },
+    { id: 'live',    label: 'Live',    count: OUTAGES.filter(o => o.type === 'live' || (o.type === 'planned' && o.startedAt <= now && o.etr > now)).length },
+    { id: 'planned', label: 'Planned', count: OUTAGES.filter(o => o.type === 'planned' && o.startedAt > now).length },
     { id: 'history', label: 'History', count: OUTAGES.filter(o => o.type === 'history').length },
   ];
   return (

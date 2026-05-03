@@ -112,15 +112,19 @@ function bulkUpsertOutages(outages) {
 function pruneStaleOutages(provider, freshIds) {
   if (!freshIds.length) return;
   const idList = freshIds.map(() => '?').join(',');
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const restoredCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const activeCutoff   = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   getDb()
     .prepare(
       `DELETE FROM outages
        WHERE provider = ?
          AND id NOT IN (${idList})
-         AND (type != 'restored' OR last_updated < ?)`
+         AND (
+           (type = 'restored' AND last_updated < ?)
+           OR (type != 'restored' AND last_updated < ?)
+         )`
     )
-    .run(provider, ...freshIds, cutoff);
+    .run(provider, ...freshIds, restoredCutoff, activeCutoff);
 }
 
 /* ------------------------------------------------------------------ */

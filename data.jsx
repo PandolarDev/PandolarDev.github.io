@@ -52,7 +52,7 @@ function generateOutages() {
     const sub = pick(SUBURBS_BY_STATE[op.state]);
     const cause = pick(CAUSES.filter(c => c !== 'Planned works'));
     const status = pick(['Investigating','Crew dispatched','Crew on site']);
-    const startedMin = Math.floor(r() * 720); // up to 12h ago
+    const startedMin = Math.floor(r() * 10080); // up to 7 days ago
     const etrMin = Math.floor(r() * 480) + 30;
     const customers = Math.floor(r() * 4500) + 30;
     rows.push({
@@ -121,11 +121,15 @@ const DEFAULT_SOURCES = OPERATORS.map(p => ({
 
 function normaliseApiOutage(row) {
   const typeMap = { unplanned: 'live', planned: 'planned', restored: 'history' };
-  const startTs = row.startedAt ? new Date(row.startedAt).getTime() : Date.now();
-  const etrTs   = row.estimatedRestoration ? new Date(row.estimatedRestoration).getTime() : Date.now() + 3600_000;
+  const now = Date.now();
+  const startTs = row.startedAt ? new Date(row.startedAt).getTime() : now;
+  const etrTs   = row.estimatedRestoration ? new Date(row.estimatedRestoration).getTime() : now + 3600_000;
+  let type = typeMap[row.type] || 'live';
+  // A planned outage whose window has already opened is now an active/current outage
+  if (type === 'planned' && startTs <= now && etrTs > now) type = 'live';
   return {
     id:        row.id,
-    type:      typeMap[row.type] || 'live',
+    type,
     operator:  row.provider,
     state:     row.state  || '',
     suburb:    row.suburb || '',

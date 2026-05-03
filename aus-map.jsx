@@ -166,7 +166,7 @@ function AusMap({
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    const liveOutages = outages.filter(o => o.type === 'live' && o.lat && o.lng);
+    const liveOutages = outages.filter(o => isCurrentlyActive(o) && o.lat && o.lng);
 
     for (const o of liveOutages) {
       const color = severityColor(o.customers, palette);
