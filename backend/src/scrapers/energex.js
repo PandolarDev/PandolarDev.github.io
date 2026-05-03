@@ -2,26 +2,31 @@
 
 /**
  * Energex — south-east Queensland electricity distributor
- * Outage page: https://www.energex.com.au/outages/outage-finder/outage-finder-map
+ * Outage map: https://www.energex.com.au/outages/outage-finder/outage-finder-map
  *
- * Energex (Energy Queensland) uses ArcGIS REST services for their outage map.
- * Endpoint discovery: network-inspect the outage finder map page and look for
- * calls to energex.com.au/server/rest/... or a Esri FeatureServer URL.
+ * Three GeoJSON FeatureCollection endpoints:
+ *   ex-map-current-unplanned — active unplanned outages
+ *   ex-map-current-planned   — active planned works
+ *   ex-map-future-planned    — upcoming planned works
  *
- * The ArcGIS service path below reflects Energy Queensland's known GIS
- * infrastructure pattern. Update layer numbers if the service schema changes.
+ * Unplanned geometry: GeometryCollection [Point, Polygon]; use Point for lat/lng.
+ * Planned geometry: Point directly.
+ *
+ * Date format from API: "1:41PM 03 May 2026"
  */
 
 const BaseScraper = require('./base');
-const { makeId, toInt, toISO } = require('../utils/normalize');
+const { makeId, toInt } = require('../utils/normalize');
 
 const PROVIDER   = 'energex';
 const NAME       = 'Energex';
 const SOURCE_URL = 'https://www.energex.com.au/outages/outage-finder/outage-finder-map';
 
-const ARCGIS_BASE      = 'https://www.energex.com.au/server/rest/services/Prod/Outages/FeatureServer';
-const LAYER_UNPLANNED  = `${ARCGIS_BASE}/0/query`;
-const LAYER_PLANNED    = `${ARCGIS_BASE}/1/query`;
+const BASE    = 'https://www.energex.com.au/api/outages-map/filestore-404';
+const QS      = 'SQ_SESSION_MODE=read_only_async';
+const API_CURRENT_UNPLANNED = `${BASE}/ex-map-current-unplanned/filestore-proxy?${QS}`;
+const API_CURRENT_PLANNED   = `${BASE}/ex-map-current-planned/filestore-proxy?${QS}`;
+const API_FUTURE_PLANNED    = `${BASE}/ex-map-future-planned/filestore-proxy?${QS}`;
 
 class EnergexScraper extends BaseScraper {
   constructor() {
@@ -29,47 +34,82 @@ class EnergexScraper extends BaseScraper {
   }
 
   async scrape() {
-    const [unplanned, planned] = await Promise.all([
-      this.arcgisQuery(LAYER_UNPLANNED).catch(() => []),
-      this.arcgisQuery(LAYER_PLANNED).catch(() => []),
+    const headers = { Referer: SOURCE_URL };
+    const [unplanned, currentPlanned, futurePlanned] = await Promise.all([
+      this.get(API_CURRENT_UNPLANNED, { headers }).catch(() => ({ features: [] })),
+      this.get(API_CURRENT_PLANNED,   { headers }).catch(() => ({ features: [] })),
+      this.get(API_FUTURE_PLANNED,    { headers }).catch(() => ({ features: [] })),
     ]);
 
     return [
-      ...unplanned.map((f) => this._normalise(f, 'unplanned')),
-      ...planned.map((f) => this._normalise(f, 'planned')),
+      ...(unplanned.features    || []).map((f) => this._normalise(f, 'unplanned')),
+      ...(currentPlanned.features || []).map((f) => this._normalise(f, 'planned')),
+      ...(futurePlanned.features  || []).map((f) => this._normalise(f, 'planned')),
     ];
   }
 
   _normalise(feature, type) {
-    const a = feature.attributes || {};
-    const g = feature.geometry   || {};
+    const p = feature.properties || {};
+    const [lng, lat] = extractPoint(feature.geometry);
+
     return {
-      id:                   makeId(PROVIDER, a.OBJECTID || a.OutageId || a.INTERRUPTION_ID),
+      id:                   makeId(PROVIDER, p.EVENT_ID),
       provider:             PROVIDER,
       providerName:         NAME,
-      type:                 type === 'planned' ? 'planned' : deriveType(a),
-      status:               a.Status || a.CREW_STATUS || null,
+      type:                 deriveType(p, type),
+      status:               p.STATUS || null,
       state:                'QLD',
-      suburb:               a.Suburb || a.SUBURB || a.LOCALITY || null,
-      postcode:             String(a.Postcode || a.POSTCODE || '').trim() || null,
-      lat:                  g.y  || null,
-      lng:                  g.x  || null,
-      customersAffected:    toInt(a.CustomersAffected || a.CUSTOMERS_AFFECTED || a.NUM_CUSTOMERS),
-      cause:                a.Cause || a.FAULT_CAUSE || null,
-      startedAt:            toISO(a.StartTime || a.INTERRUPTION_START || a.START_DATETIME),
-      estimatedRestoration: toISO(a.ETR || a.ESTIMATED_RESTORE_TIME || a.EXPECTED_RESTORE_TIME),
-      lastUpdated:          toISO(a.LastUpdated || a.LAST_UPDATE) || new Date().toISOString(),
+      suburb:               p.SUBURBS || null,
+      postcode:             null,
+      lat:                  lat,
+      lng:                  lng,
+      customersAffected:    toInt(p.CUSTOMERS_AFFECTED),
+      cause:                p.REASON || null,
+      startedAt:            parseEnergexDate(p.START),
+      estimatedRestoration: parseEnergexDate(p.EST_FIX_TIME),
+      lastUpdated:          new Date().toISOString(),
       sourceUrl:            SOURCE_URL,
       _raw:                 feature,
     };
   }
 }
 
-function deriveType(a) {
-  const raw = String(a.OutageType || a.INTERRUPTION_TYPE || a.Type || '').toLowerCase();
-  if (raw.includes('restor')) return 'restored';
-  if (raw.includes('planned') || raw.includes('scheduled')) return 'planned';
-  return 'unplanned';
+function extractPoint(geometry) {
+  if (!geometry) return [null, null];
+  if (geometry.type === 'Point') {
+    return geometry.coordinates || [null, null];
+  }
+  if (geometry.type === 'GeometryCollection') {
+    const point = (geometry.geometries || []).find((g) => g.type === 'Point');
+    return point ? (point.coordinates || [null, null]) : [null, null];
+  }
+  return [null, null];
+}
+
+function deriveType(props, fallback) {
+  const status = String(props.STATUS || '').toLowerCase();
+  if (status === 'restored' || status.includes('restor')) return 'restored';
+  const t = String(props.TYPE || '').toLowerCase();
+  if (t === 'planned') return 'planned';
+  if (t === 'unplanned') return 'unplanned';
+  return fallback;
+}
+
+// Parses "1:41PM 03 May 2026" → ISO string
+const MONTHS = { jan:0, feb:1, mar:2, apr:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
+function parseEnergexDate(str) {
+  if (!str) return null;
+  // e.g. "1:41PM 03 May 2026"
+  const m = str.match(/(\d+):(\d+)(AM|PM)\s+(\d+)\s+(\w+)\s+(\d+)/i);
+  if (!m) return null;
+  let [, hh, mm, ampm, dd, mon, yyyy] = m;
+  let h = parseInt(hh, 10);
+  if (ampm.toUpperCase() === 'PM' && h !== 12) h += 12;
+  if (ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+  const monthIdx = MONTHS[mon.toLowerCase().slice(0, 3)];
+  if (monthIdx === undefined) return null;
+  const d = new Date(Date.UTC(parseInt(yyyy, 10), monthIdx, parseInt(dd, 10), h, parseInt(mm, 10)));
+  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 module.exports = new EnergexScraper();

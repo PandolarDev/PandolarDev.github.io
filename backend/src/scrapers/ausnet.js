@@ -2,27 +2,24 @@
 
 /**
  * AusNet Services — eastern/central Victoria electricity distributor
- * Outage tracker: https://www.outagetracker.com.au/
+ * Outage tracker: https://outagetrackerservice.ausnetservices.com.au/
  *
- * AusNet operates a dedicated outage tracker site at outagetracker.com.au.
- * The site is a React SPA that fetches outage data from a JSON REST API.
+ * Single combined endpoint returns all incidents (planned + unplanned).
+ * Response shape: { data: [...], errors: [...], success: bool }
  *
- * Endpoint discovery: open DevTools Network tab on outagetracker.com.au and
- * inspect XHR/Fetch requests. The API base URL is typically under
- * /api/v1/ or /map/incidents with JSON responses.
- *
- * Primary endpoint: returns all active incidents as a JSON array.
- * Secondary endpoint: returns planned works (maintenance windows).
+ * Each item has fields:
+ *   id, type ("Planned"/"Unplanned"), incidentStatus, cause,
+ *   latitude, longitude, nmiCount, unplannedStartTime, plannedStartTime,
+ *   latestEstimatedTimeToRestoration, incidentLastUpdated, details[]
  */
 
 const BaseScraper = require('./base');
 const { makeId, toInt, toISO } = require('../utils/normalize');
 
-const PROVIDER        = 'ausnet';
-const NAME            = 'AusNet Services';
-const SOURCE_URL      = 'https://www.outagetracker.com.au/';
-const API_UNPLANNED   = 'https://www.outagetracker.com.au/api/v1/incidents';
-const API_PLANNED     = 'https://www.outagetracker.com.au/api/v1/planned-works';
+const PROVIDER   = 'ausnet';
+const NAME       = 'AusNet Services';
+const SOURCE_URL = 'https://outagetrackerservice.ausnetservices.com.au/';
+const API_URL    = 'https://outagetrackerservice.ausnetservices.com.au/api/v1/outages/combinedoutage';
 
 class AusnetScraper extends BaseScraper {
   constructor() {
@@ -30,37 +27,41 @@ class AusnetScraper extends BaseScraper {
   }
 
   async scrape() {
-    const [unplanned, planned] = await Promise.all([
-      this.get(API_UNPLANNED, { headers: { Referer: SOURCE_URL } }).catch(() => []),
-      this.get(API_PLANNED,   { headers: { Referer: SOURCE_URL } }).catch(() => []),
-    ]);
-
-    const unplannedItems = Array.isArray(unplanned) ? unplanned : (unplanned.incidents || unplanned.data || []);
-    const plannedItems   = Array.isArray(planned)   ? planned   : (planned.plannedWorks || planned.data || []);
-
-    return [
-      ...unplannedItems.map((i) => this._normalise(i, 'unplanned')),
-      ...plannedItems.map((i)   => this._normalise(i, 'planned')),
-    ];
+    const data = await this.get(API_URL, {
+      headers: { Referer: 'https://outagetrackerservice.ausnetservices.com.au/' },
+    });
+    const items = Array.isArray(data) ? data : (data.data || []);
+    return items.map((item) => this._normalise(item));
   }
 
-  _normalise(item, type) {
+  _normalise(item) {
+    const isPlanned = String(item.type || '').toLowerCase() === 'planned';
+
+    // suburb may appear in details array entries
+    const suburb = (Array.isArray(item.details) && item.details.length > 0)
+      ? (item.details[0].suburb || item.details[0].townName || item.details[0].location || null)
+      : null;
+
+    const startTime = isPlanned
+      ? (item.plannedStartTime || item.unplannedStartTime)
+      : (item.unplannedStartTime || item.plannedStartTime);
+
     return {
-      id:                   makeId(PROVIDER, item.id || item.incidentId || item.outageId),
+      id:                   makeId(PROVIDER, item.id || item.incident),
       provider:             PROVIDER,
       providerName:         NAME,
-      type:                 type === 'planned' ? 'planned' : deriveType(item),
-      status:               item.status || item.crewStatus || null,
+      type:                 deriveType(item),
+      status:               item.incidentStatus || item.status || null,
       state:                'VIC',
-      suburb:               item.suburb || item.location || item.area || null,
-      postcode:             String(item.postcode || '').trim() || null,
-      lat:                  parseFloat(item.latitude  || item.lat)  || null,
-      lng:                  parseFloat(item.longitude || item.lng)  || null,
-      customersAffected:    toInt(item.customersAffected || item.customers || item.affectedCustomers),
-      cause:                item.cause || item.faultCause || null,
-      startedAt:            toISO(item.startTime || item.startedAt || item.incidentStart),
-      estimatedRestoration: toISO(item.etr || item.estimatedRestoration || item.restorationTime),
-      lastUpdated:          toISO(item.lastUpdated || item.updatedAt) || new Date().toISOString(),
+      suburb:               suburb,
+      postcode:             null,
+      lat:                  parseFloat(item.latitude)  || null,
+      lng:                  parseFloat(item.longitude) || null,
+      customersAffected:    toInt(item.nmiCount),
+      cause:                item.cause || null,
+      startedAt:            toISO(startTime),
+      estimatedRestoration: toISO(item.latestEstimatedTimeToRestoration || item.initialEstimatedTimeToRestoration),
+      lastUpdated:          toISO(item.incidentLastUpdated) || new Date().toISOString(),
       sourceUrl:            SOURCE_URL,
       _raw:                 item,
     };
@@ -68,9 +69,11 @@ class AusnetScraper extends BaseScraper {
 }
 
 function deriveType(item) {
-  const raw = String(item.type || item.outageType || item.incidentType || '').toLowerCase();
-  if (raw.includes('restor')) return 'restored';
-  if (raw.includes('planned') || raw.includes('maintenance')) return 'planned';
+  const status = String(item.incidentStatus || '').toLowerCase();
+  if (status === 'restored' || status.includes('restor')) return 'restored';
+
+  const type = String(item.type || '').toLowerCase();
+  if (type === 'planned') return 'planned';
   return 'unplanned';
 }
 
