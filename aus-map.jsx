@@ -11,6 +11,12 @@ const CITY_COORDS = {
   Canberra:  [-35.28, 149.13],
 };
 
+function tileUrlFor(isDark) {
+  return isDark
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+}
+
 function severityColor(customers, palette) {
   if (customers === 0) return palette.ok;
   if (customers <= 100) return palette.low;
@@ -36,20 +42,11 @@ function ensurePulseStyle() {
       animation: outage-pulse-ring 2.2s ease-out infinite;
       pointer-events: none;
     }
-    .outage-dot {
-      position: relative;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.45);
-    }
+    .outage-dot { position: relative; border-radius: 50%; border: 2px solid rgba(255,255,255,0.45); }
     .leaflet-tooltip.city-pin-label {
-      background: transparent;
-      border: none;
-      box-shadow: none;
+      background: transparent; border: none; box-shadow: none;
       padding: 0 0 0 4px;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      font-weight: 500;
-      white-space: nowrap;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 500; white-space: nowrap;
     }
     .leaflet-tooltip.city-pin-label::before { display: none; }
   `;
@@ -86,59 +83,74 @@ function AusMap({
   const markersRef = React.useRef([]);
   const pinMarkersRef = React.useRef([]);
   const onSelectStateRef = React.useRef(onSelectState);
+  const [mapReady, setMapReady] = React.useState(false);
 
   React.useEffect(() => { onSelectStateRef.current = onSelectState; }, [onSelectState]);
 
   const isDark = palette.bg.startsWith('#0') || palette.bg.startsWith('#1') || palette.bg.startsWith('#2');
-  const tileUrl = isDark
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
-  // Initialize map once
+  // ── Init: runs once. Uses setTimeout(0) so the browser has laid out the
+  //    flex/overflow parents before Leaflet measures offsetHeight.
   React.useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+
     ensurePulseStyle();
 
-    const map = L.map(containerRef.current, {
-      center: [-27, 134],
-      zoom: 4,
-      minZoom: 3,
-      maxZoom: 13,
-      scrollWheelZoom: true,
-      attributionControl: true,
-      zoomControl: true,
-    });
+    let map;
+    const t = setTimeout(() => {
+      if (mapRef.current) return;
 
-    map.attributionControl.setPrefix('');
-    map.fitBounds([[-44, 112], [-10, 154]]);
-    mapRef.current = map;
+      map = L.map(container, {
+        center: [-27, 134],
+        zoom: 4,
+        minZoom: 3,
+        maxZoom: 13,
+        scrollWheelZoom: true,
+        attributionControl: true,
+        zoomControl: true,
+      });
+
+      map.attributionControl.setPrefix('');
+
+      const tl = L.tileLayer(tileUrlFor(isDark), {
+        attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19,
+      }).addTo(map);
+
+      tileLayerRef.current = tl;
+      map.fitBounds([[-44, 112], [-10, 154]]);
+      mapRef.current = map;
+
+      // Trigger marker/pin effects and catch any remaining sizing edge-cases
+      setTimeout(() => map.invalidateSize(), 150);
+      setMapReady(true);
+    }, 0);
 
     return () => {
-      map.remove();
-      mapRef.current = null;
-      tileLayerRef.current = null;
-      markersRef.current = [];
-      pinMarkersRef.current = [];
+      clearTimeout(t);
+      if (map) {
+        map.remove();
+        mapRef.current = null;
+        tileLayerRef.current = null;
+        markersRef.current = [];
+        pinMarkersRef.current = [];
+      }
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Swap tile layer when dark/light changes
+  // ── Swap tile URL when dark/light changes (after initial mount)
   React.useEffect(() => {
-    if (!mapRef.current) return;
-    if (tileLayerRef.current) {
-      tileLayerRef.current.remove();
-      tileLayerRef.current = null;
-    }
-    tileLayerRef.current = L.tileLayer(tileUrl, {
-      attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19,
-    }).addTo(mapRef.current);
-  }, [tileUrl]);
+    const tl = tileLayerRef.current;
+    if (!tl) return;
+    tl.setUrl(tileUrlFor(isDark));
+  }, [isDark]);
 
-  // Outage markers
+  // ── Outage markers
   React.useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!map) return;
 
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
@@ -148,22 +160,23 @@ function AusMap({
     for (const o of liveOutages) {
       const color = severityColor(o.customers, palette);
       const r = Math.max(6, Math.min(20, Math.sqrt(o.customers) / 4));
-
       let marker;
+
       if (pulse) {
         const wrapSize = r * 6;
         const delay = (o.id.charCodeAt(4) % 5) * 0.44;
-        const icon = L.divIcon({
-          className: '',
-          html: `<div class="outage-pulse-wrap" style="width:${wrapSize}px;height:${wrapSize}px;">
-                   <div class="outage-pulse-ring" style="width:${r * 2}px;height:${r * 2}px;background:${color};animation-delay:${delay}s;"></div>
-                   <div class="outage-dot" style="width:${r * 2}px;height:${r * 2}px;background:${color};"></div>
-                 </div>`,
-          iconSize: [wrapSize, wrapSize],
-          iconAnchor: [wrapSize / 2, wrapSize / 2],
-          popupAnchor: [0, -(wrapSize / 2)],
+        marker = L.marker([o.lat, o.lng], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div class="outage-pulse-wrap" style="width:${wrapSize}px;height:${wrapSize}px;">
+                     <div class="outage-pulse-ring" style="width:${r*2}px;height:${r*2}px;background:${color};animation-delay:${delay}s;"></div>
+                     <div class="outage-dot" style="width:${r*2}px;height:${r*2}px;background:${color};"></div>
+                   </div>`,
+            iconSize: [wrapSize, wrapSize],
+            iconAnchor: [wrapSize / 2, wrapSize / 2],
+            popupAnchor: [0, -(wrapSize / 2)],
+          }),
         });
-        marker = L.marker([o.lat, o.lng], { icon });
       } else {
         marker = L.circleMarker([o.lat, o.lng], {
           radius: r,
@@ -176,14 +189,15 @@ function AusMap({
 
       marker.bindPopup(makePopupHtml(o), { maxWidth: 280 });
       marker.on('click', () => onSelectStateRef.current(o.state));
-      marker.addTo(mapRef.current);
+      marker.addTo(map);
       markersRef.current.push(marker);
     }
-  }, [outages, palette, pulse, isDark]);
+  }, [mapReady, outages, palette, pulse, isDark]);
 
-  // City pin markers
+  // ── City pins
   React.useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!map) return;
 
     pinMarkersRef.current.forEach(m => m.remove());
     pinMarkersRef.current = [];
@@ -191,25 +205,23 @@ function AusMap({
     if (!showPins) return;
 
     for (const [name, coords] of Object.entries(CITY_COORDS)) {
-      const icon = L.divIcon({
-        className: '',
-        html: `<div style="width:8px;height:8px;border-radius:50%;background:${palette.bg};border:2px solid ${palette.fg};box-shadow:0 0 0 1px rgba(0,0,0,0.2);"></div>`,
-        iconSize: [8, 8],
-        iconAnchor: [4, 4],
+      const marker = L.marker(coords, {
+        interactive: false,
+        zIndexOffset: -100,
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="width:8px;height:8px;border-radius:50%;background:${palette.bg};border:2px solid ${palette.fg};box-shadow:0 0 0 1px rgba(0,0,0,0.2);"></div>`,
+          iconSize: [8, 8],
+          iconAnchor: [4, 4],
+        }),
       });
-      const marker = L.marker(coords, { icon, interactive: false, zIndexOffset: -100 });
-      marker.bindTooltip(name, {
-        permanent: true,
-        direction: 'right',
-        className: 'city-pin-label',
-        offset: [6, 0],
-      });
-      marker.addTo(mapRef.current);
+      marker.bindTooltip(name, { permanent: true, direction: 'right', className: 'city-pin-label', offset: [6, 0] });
+      marker.addTo(map);
       pinMarkersRef.current.push(marker);
     }
-  }, [showPins, palette]);
+  }, [mapReady, showPins, palette]);
 
-  // City label color tracks palette
+  // ── City label text colour tracks palette
   React.useEffect(() => {
     let el = document.getElementById('aus-map-city-label-style');
     if (!el) {
@@ -220,18 +232,12 @@ function AusMap({
     el.textContent = `.leaflet-tooltip.city-pin-label { color: ${palette.fg} !important; }`;
   }, [palette.fg]);
 
-  // Invalidate size when height changes (e.g. variant switch)
-  React.useEffect(() => {
-    const timer = setTimeout(() => mapRef.current?.invalidateSize(), 60);
-    return () => clearTimeout(timer);
-  }, [height]);
-
   const cssHeight = typeof height === 'number' ? `${height}px` : height;
 
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: cssHeight, minHeight: typeof height === 'number' ? height : 300 }}
+      style={{ position: 'relative', width: '100%', height: cssHeight, minHeight: typeof height === 'number' ? height : 300 }}
     />
   );
 }
