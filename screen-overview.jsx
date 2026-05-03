@@ -42,27 +42,61 @@ function OverviewScreen({ palette, tab, setTab, filters, setFilters, openInciden
 }
 
 function StandardOverview({ palette, rows, pulse, density, tab, setTab, filters, setFilters, openIncident, selected, setSelectedState, stats, variant }) {
+  const [mapHeight, setMapHeight] = React.useState(300);
+  const dragRef = React.useRef(null);
+
+  const onDragStart = (e) => {
+    e.preventDefault();
+    dragRef.current = { startY: e.clientY, startH: mapHeight };
+    const onMove = (ev) => {
+      if (!dragRef.current) return;
+      const delta = ev.clientY - dragRef.current.startY;
+      setMapHeight(Math.max(120, Math.min(640, dragRef.current.startH + delta)));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* stats strip */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${palette.border}`, background: palette.bg }}>
+      <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${palette.border}`, background: palette.bg, flexShrink: 0 }}>
         <Stat label="Active outages" value={stats.liveCount} sub="↑ 4 in last hour" palette={palette} accent={palette.high}/>
         <Stat label="Customers affected" value={fmtNum(stats.customersAffected)} sub="across 7 states" palette={palette}/>
         <Stat label="Median ETR" value={`${stats.avgEtr}m`} sub="from now" palette={palette}/>
         <Stat label="Planned (24h)" value={stats.plannedCount} sub="scheduled works" palette={palette} accent={palette.low}/>
       </div>
 
-      {/* map + side */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${palette.border}` }}>
-        <div style={{ flex: 1, padding: 16, background: palette.bg }}>
-          <AusMap palette={palette} pulse={pulse} onSelectState={setSelectedState}/>
+      {/* map + side — height controlled by drag handle */}
+      <div style={{ display: 'flex', height: mapHeight, flexShrink: 0 }}>
+        <div style={{ flex: 1, padding: 16, background: palette.bg, overflow: 'hidden' }}>
+          <AusMap palette={palette} pulse={pulse} onSelectState={setSelectedState} height={mapHeight - 32}/>
         </div>
-        <div style={{ width: 280, borderLeft: `1px solid ${palette.border}`, padding: '14px 16px', background: palette.surface }}>
+        <div style={{ width: 280, borderLeft: `1px solid ${palette.border}`, padding: '14px 16px', background: palette.surface, overflow: 'auto' }}>
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>By operator · live</div>
           <OperatorBars palette={palette}/>
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, color: palette.dim, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '20px 0 10px' }}>Top causes</div>
           <CauseBars palette={palette}/>
         </div>
+      </div>
+
+      {/* drag handle */}
+      <div
+        onMouseDown={onDragStart}
+        style={{
+          height: 8, flexShrink: 0, cursor: 'ns-resize',
+          borderTop: `1px solid ${palette.border}`,
+          borderBottom: `1px solid ${palette.border}`,
+          background: palette.surfaceAlt,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <div style={{ width: 36, height: 3, borderRadius: 2, background: palette.gridLine, opacity: 0.7 }}/>
       </div>
 
       <TabsHeader tab={tab} setTab={setTab} palette={palette}/>

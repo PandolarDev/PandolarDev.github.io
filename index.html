@@ -18,7 +18,7 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(127,127,127,0.3); border-radius: 5px; }
   ::-webkit-scrollbar-thumb:hover { background: rgba(127,127,127,0.5); }
-  #root { padding: 28px; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; }
+  #root { padding: 0; height: 100vh; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -123,20 +123,14 @@ function App() {
           Fetching live outage data…
         </div>
       )}
-      <ChromeWindow
-        tabs={[{ title: 'Outage Tracker — AU' }, { title: 'GridLink Status' }, { title: 'BoM Weather' }]}
-        activeIndex={0}
-        url="outagetracker.au/dashboard"
-        width={1380} height={860}>
-        <div style={{ display: 'flex', height: '100%', position: 'relative', background: palette.bg, fontFamily: 'IBM Plex Sans, sans-serif' }}
-             data-screen-label={`01 ${screen}`}>
-          <Sidebar screen={screen} setScreen={setScreen} palette={palette} variant={variant}/>
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-            {body}
-            {selected && <IncidentPanel outage={selected} onClose={closeIncident} palette={palette}/>}
-          </div>
+      <div style={{ display: 'flex', height: '100vh', position: 'relative', background: palette.bg, fontFamily: 'IBM Plex Sans, sans-serif' }}
+           data-screen-label={`01 ${screen}`}>
+        <Sidebar screen={screen} setScreen={setScreen} palette={palette} variant={variant}/>
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          {body}
+          {selected && <IncidentPanel outage={selected} onClose={closeIncident} palette={palette}/>}
         </div>
-      </ChromeWindow>
+      </div>
 
       <TweaksPanel title="Tweaks" defaultPosition={{ right: 20, top: 20 }}>
         <TweakSection title="Layout variant">
