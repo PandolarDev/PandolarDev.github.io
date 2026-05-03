@@ -402,7 +402,7 @@ function IncidentPanel({ outage, onClose, palette }) {
     <div style={{
       position: 'absolute', top: 0, right: 0, bottom: 0, width: 460,
       background: palette.surface, borderLeft: `1px solid ${palette.border}`,
-      display: 'flex', flexDirection: 'column', zIndex: 10,
+      display: 'flex', flexDirection: 'column', zIndex: 1100,
       boxShadow: `-12px 0 32px ${palette.shadow}`,
     }}>
       <div style={{ padding: '16px 20px', borderBottom: `1px solid ${palette.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
