@@ -140,6 +140,17 @@ function AusMap({
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Reflow Leaflet whenever the container is resized (e.g. drag handle)
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const ro = new ResizeObserver(() => {
+      if (mapRef.current) mapRef.current.invalidateSize();
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
+
   // ── Swap tile URL when dark/light changes (after initial mount)
   React.useEffect(() => {
     const tl = tileLayerRef.current;
