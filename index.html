@@ -49,7 +49,6 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "variant": "civic",
   "dark": true,
   "palette": "civic",
-  "weather": false,
   "density": "compact",
   "pulse": true
 }/*EDITMODE-END*/;
@@ -88,14 +87,14 @@ function App() {
     body = <OverviewScreen palette={palette} tab={tab} setTab={setTab}
               filters={filters} setFilters={setFilters}
               openIncident={openIncident} selected={selected}
-              pulse={tweaks.pulse} weather={tweaks.weather} density={tweaks.density}
+              pulse={tweaks.pulse} density={tweaks.density}
               variant={variant}
               selectedState={selectedState} setSelectedState={onSelectState}/>;
   } else if (screen === 'region') {
     body = <RegionScreen palette={palette}
               selectedState={selectedState} setSelectedState={setSelectedState}
               openIncident={openIncident}
-              density={tweaks.density} pulse={tweaks.pulse} weather={tweaks.weather} variant={variant}/>;
+              density={tweaks.density} pulse={tweaks.pulse} variant={variant}/>;
   } else if (screen === 'lookup') {
     body = <LookupScreen palette={palette} openIncident={openIncident}/>;
   } else if (screen === 'alerts') {
@@ -156,7 +155,6 @@ function App() {
             options={[{ value: 'civic', label: 'Civic' }, { value: 'warm', label: 'Warm' }, { value: 'mono', label: 'Mono' }]}/>
         </TweakSection>
         <TweakSection title="Map">
-          <TweakToggle label="Weather overlay" value={tweaks.weather} onChange={v => setTweak('weather', v)}/>
           <TweakToggle label="Live pulse" value={tweaks.pulse} onChange={v => setTweak('pulse', v)}/>
         </TweakSection>
         <TweakSection title="Density">

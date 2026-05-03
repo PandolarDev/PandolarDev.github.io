@@ -1,15 +1,5 @@
 // Leaflet-powered outage map for Australia
 
-const STATE_CENTROIDS_LL = {
-  WA:  [-26.0, 121.0],
-  NT:  [-20.0, 134.0],
-  SA:  [-30.0, 135.5],
-  QLD: [-22.0, 144.0],
-  NSW: [-32.5, 147.0],
-  VIC: [-37.0, 144.0],
-  TAS: [-42.0, 146.5],
-};
-
 const CITY_COORDS = {
   Sydney:    [-33.87, 151.21],
   Melbourne: [-37.81, 144.96],
@@ -84,15 +74,11 @@ function makePopupHtml(o) {
 
 function AusMap({
   outages = window.OUTAGES,
-  selectedState = null,
   onSelectState = () => {},
   palette,
   pulse = true,
-  showWeather = false,
   showPins = true,
   height = 460,
-  density = 'comfortable',
-  variant = 'civic',
 }) {
   const containerRef = React.useRef(null);
   const mapRef = React.useRef(null);
