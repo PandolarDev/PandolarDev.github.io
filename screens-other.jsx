@@ -103,14 +103,22 @@ function LookupScreen({ palette, openIncident }) {
 
   const submit = (e) => {
     e?.preventDefault();
-    if (!query.trim()) return;
-    // crude match: check postcode or suburb in query
-    const q = query.toLowerCase();
-    const match = OUTAGES.find(o => isCurrentlyActive(o) && (q.includes(String(o.postcode)) || q.includes(o.suburb.toLowerCase())));
-    setSubmitted({ query, match });
+    const q = query.trim();
+    if (!q) return;
+
+    // Split address into tokens so "12 Bondi Rd, Bondi NSW 2026" extracts "bondi", "2026", etc.
+    const tokens = q.toLowerCase().split(/[\s,]+/).filter(t => t.length >= 2);
+
+    const matches = OUTAGES.filter(o => isCurrentlyActive(o) && tokens.some(t => {
+      const sub = o.suburb.toLowerCase();
+      const pc = String(o.postcode);
+      return sub.includes(t) || t.includes(sub) || pc.startsWith(t) || t === pc;
+    }));
+
+    setSubmitted({ query: q, matches });
   };
 
-  const sample = ['12 Bondi Rd, Bondi NSW 2026', '88 Brunswick St, Fitzroy VIC 3065', 'Toowong QLD 4066'];
+  const sample = ['Bondi', 'Carlton VIC', 'Toowong'];
 
   return (
     <div style={{ padding: 32, maxWidth: 760, margin: '0 auto', height: '100%', overflow: 'auto', background: palette.bg }}>
@@ -132,7 +140,7 @@ function LookupScreen({ palette, openIncident }) {
       <div style={{ display: 'flex', gap: 8, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim, flexWrap: 'wrap' }}>
         <span>try:</span>
         {sample.map(s => (
-          <button key={s} onClick={() => { setQuery(s); }} style={{
+          <button key={s} onClick={() => setQuery(s)} style={{
             background: 'none', border: 'none', color: palette.accent, textDecoration: 'underline', cursor: 'pointer',
             fontFamily: 'inherit', fontSize: 'inherit', padding: 0,
           }}>{s}</button>
@@ -142,28 +150,39 @@ function LookupScreen({ palette, openIncident }) {
       {submitted && (
         <div style={{ marginTop: 28, border: `1px solid ${palette.border}`, background: palette.surface }}>
           <div style={{ padding: '14px 18px', borderBottom: `1px solid ${palette.borderSoft}` }}>
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim }}>Result for</div>
+            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim }}>
+              {submitted.matches.length > 0
+                ? `${submitted.matches.length} active outage${submitted.matches.length > 1 ? 's' : ''} found for`
+                : 'Result for'}
+            </div>
             <div style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 16, color: palette.fg, fontWeight: 600 }}>{submitted.query}</div>
           </div>
-          {submitted.match ? (
-            <div style={{ padding: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 12, height: 12, background: palette.high, borderRadius: '50%' }}/>
-                <span style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 18, fontWeight: 600, color: palette.fg }}>Power is out at this address.</span>
-              </div>
-              <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: palette.dim, lineHeight: 1.7 }}>
-                <div>Outage: <span style={{ color: palette.fg }}>{submitted.match.id}</span></div>
-                <div>Operator: <span style={{ color: palette.fg }}>{OPERATORS.find(x => x.id === submitted.match.operator)?.name}</span></div>
-                <div>Cause: <span style={{ color: palette.fg }}>{submitted.match.cause}</span></div>
-                <div>Started: <span style={{ color: palette.fg }}>{fmtAgo(submitted.match.startedAt)} ago</span></div>
-                <div>Estimated restoration: <span style={{ color: palette.fg }}>{fmtTime(submitted.match.etr)}</span></div>
-                <div>Customers affected: <span style={{ color: palette.fg }}>{fmtNum(submitted.match.customers)}</span></div>
-              </div>
-              <button onClick={() => openIncident(submitted.match)} style={{
-                marginTop: 14, padding: '8px 14px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11,
-                background: 'transparent', color: palette.accent, border: `1px solid ${palette.accent}`,
-                letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 0,
-              }}>Open incident →</button>
+          {submitted.matches.length > 0 ? (
+            <div>
+              {submitted.matches.map(match => (
+                <div key={match.id} style={{ padding: 18, borderBottom: `1px solid ${palette.borderSoft}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <div style={{ width: 12, height: 12, background: palette.high, borderRadius: '50%', flexShrink: 0 }}/>
+                    <span style={{ fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 16, fontWeight: 600, color: palette.fg }}>
+                      {match.suburb}, {match.state} {match.postcode}
+                    </span>
+                    <SevBadge status={match.status} palette={palette}/>
+                  </div>
+                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: palette.dim, lineHeight: 1.7 }}>
+                    <div>Outage: <span style={{ color: palette.fg }}>{match.id}</span></div>
+                    <div>Operator: <span style={{ color: palette.fg }}>{OPERATORS.find(x => x.id === match.operator)?.name}</span></div>
+                    <div>Cause: <span style={{ color: palette.fg }}>{match.cause}</span></div>
+                    <div>Started: <span style={{ color: palette.fg }}>{fmtAgo(match.startedAt)} ago</span></div>
+                    <div>Estimated restoration: <span style={{ color: palette.fg }}>{fmtTime(match.etr)}</span></div>
+                    <div>Customers affected: <span style={{ color: palette.fg }}>{fmtNum(match.customers)}</span></div>
+                  </div>
+                  <button onClick={() => openIncident(match)} style={{
+                    marginTop: 14, padding: '8px 14px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11,
+                    background: 'transparent', color: palette.accent, border: `1px solid ${palette.accent}`,
+                    letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 0,
+                  }}>Open incident →</button>
+                </div>
+              ))}
             </div>
           ) : (
             <div style={{ padding: 18 }}>
