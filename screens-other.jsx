@@ -187,10 +187,7 @@ function AlertsScreen({ palette }) {
     types: { live: true, planned: true, restored: false },
   });
   const [saved, setSaved] = React.useState(false);
-  const [subs, setSubs] = React.useState([
-    { id: 'sub1', address: '12 Bondi Rd, Bondi NSW 2026', channels: 'email, sms', types: 'live, planned' },
-    { id: 'sub2', address: 'Postcode 3065', channels: 'email', types: 'live' },
-  ]);
+  const [subs, setSubs] = React.useState([]);
 
   const submit = (e) => {
     e.preventDefault();
@@ -290,7 +287,7 @@ function AlertsScreen({ palette }) {
 
 // ============== DATA SOURCES ==============
 function SourcesScreen({ palette }) {
-  const [sources, setSources] = React.useState(DEFAULT_SOURCES);
+  const [sources, setSources] = useLiveSources();
   const [adding, setAdding] = React.useState(false);
   const [form, setForm] = React.useState({ name: '', type: 'API', url: '' });
 
@@ -366,7 +363,7 @@ function SourcesScreen({ palette }) {
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor }}/>
                 {s.status}
               </span>
-              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim }}>{s.lastSync}s ago</span>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.dim }}>{s.lastSync != null ? `${s.lastSync}s ago` : '—'}</span>
               <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: palette.fg }}>{fmtNum(s.records)}</span>
               <span style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => togglePause(s.id)} style={{
