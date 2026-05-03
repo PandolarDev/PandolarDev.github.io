@@ -1,15 +1,27 @@
 // Outage Tracker — main screens
 
 // ============== OVERVIEW ==============
+function isCurrentlyActive(o) {
+  const now = Date.now();
+  return o.type === 'live' || (o.type === 'planned' && o.startedAt <= now && o.etr > now);
+}
+
 function OverviewScreen({ palette, tab, setTab, filters, setFilters, openIncident, selected, pulse, density, variant, selectedState, setSelectedState }) {
-  const allRows = OUTAGES.filter(o => o.type === tab);
+  const now = Date.now();
+  const allRows = tab === 'live'
+    ? OUTAGES.filter(isCurrentlyActive)
+    : tab === 'planned'
+      ? OUTAGES.filter(o => o.type === 'planned' && o.startedAt > now)
+      : OUTAGES.filter(o => o.type === tab);
   const rows = applyFilters(allRows, filters);
-  const liveCount = OUTAGES.filter(o => o.type === 'live').length;
-  const customersAffected = OUTAGES.filter(o => o.type === 'live').reduce((a,b) => a + b.customers, 0);
-  const avgEtr = Math.round(
-    OUTAGES.filter(o => o.type === 'live').reduce((a,b) => a + (b.etr - Date.now()) / 60_000, 0) / liveCount
-  );
-  const plannedCount = OUTAGES.filter(o => o.type === 'planned').length;
+  const currentOutages = OUTAGES.filter(isCurrentlyActive);
+  const liveCount = currentOutages.length;
+  const customersAffected = currentOutages.reduce((a,b) => a + b.customers, 0);
+  const withFutureEtr = currentOutages.filter(o => o.etr > now);
+  const avgEtr = withFutureEtr.length > 0
+    ? Math.round(withFutureEtr.reduce((a,b) => a + (b.etr - now) / 60_000, 0) / withFutureEtr.length)
+    : 0;
+  const plannedCount = OUTAGES.filter(o => o.type === 'planned' && o.startedAt > now).length;
 
   // Layout variants
   if (variant === 'editorial') {
@@ -276,7 +288,7 @@ function Legend({ palette }) {
 }
 
 function OperatorBars({ palette }) {
-  const live = OUTAGES.filter(o => o.type === 'live');
+  const live = OUTAGES.filter(isCurrentlyActive);
   const counts = {};
   for (const o of live) counts[o.operator] = (counts[o.operator] || 0) + 1;
   const max = Math.max(...Object.values(counts), 1);
@@ -300,7 +312,7 @@ function OperatorBars({ palette }) {
 }
 
 function CauseBars({ palette }) {
-  const live = OUTAGES.filter(o => o.type === 'live');
+  const live = OUTAGES.filter(isCurrentlyActive);
   const counts = {};
   for (const o of live) counts[o.cause] = (counts[o.cause] || 0) + 1;
   const max = Math.max(...Object.values(counts), 1);
@@ -321,6 +333,7 @@ function CauseBars({ palette }) {
 }
 
 Object.assign(window, {
+  isCurrentlyActive,
   OverviewScreen, StandardOverview, EditorialOverview, CardsOverview, MapFirstOverview,
   OutageCard, TableHeader, EmptyRow, Legend, OperatorBars, CauseBars,
 });

@@ -4,7 +4,7 @@
 function RegionScreen({ palette, selectedState, setSelectedState, openIncident, density, pulse, variant }) {
   const code = selectedState || 'NSW';
   const stateInfo = STATES.find(s => s.code === code);
-  const stateOutages = OUTAGES.filter(o => o.state === code && o.type === 'live');
+  const stateOutages = OUTAGES.filter(o => o.state === code && isCurrentlyActive(o));
   const customers = stateOutages.reduce((a,b) => a + b.customers, 0);
   const opsAffected = new Set(stateOutages.map(o => o.operator));
 
@@ -105,7 +105,7 @@ function LookupScreen({ palette, openIncident }) {
     if (!query.trim()) return;
     // crude match: check postcode or suburb in query
     const q = query.toLowerCase();
-    const match = OUTAGES.find(o => o.type === 'live' && (q.includes(String(o.postcode)) || q.includes(o.suburb.toLowerCase())));
+    const match = OUTAGES.find(o => isCurrentlyActive(o) && (q.includes(String(o.postcode)) || q.includes(o.suburb.toLowerCase())));
     setSubmitted({ query, match });
   };
 
@@ -395,7 +395,7 @@ function IncidentPanel({ outage, onClose, palette }) {
     { t: outage.startedAt + 5 * 60_000, label: 'Operator notified', desc: op?.name },
     { t: outage.startedAt + 12 * 60_000, label: 'Crew dispatched', desc: `${outage.crews} crew(s) en route` },
     { t: outage.startedAt + 28 * 60_000, label: 'Investigating', desc: 'Fault location confirmed' },
-    { t: outage.etr, label: 'Estimated restoration', desc: 'Subject to conditions', future: true },
+    { t: outage.etr, label: outage.etr > Date.now() ? 'Estimated restoration' : 'ETR exceeded — restoration ongoing', desc: 'Subject to conditions', future: outage.etr > Date.now() },
   ];
 
   return (
