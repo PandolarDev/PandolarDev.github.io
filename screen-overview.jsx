@@ -239,7 +239,7 @@ function OutageCard({ o, palette, onOpen, selected }) {
         <div><span style={{ color: palette.dim }}>customers </span><span style={{ color: palette.fg, fontWeight: 600 }}>{fmtNum(o.customers)}</span></div>
         <div><span style={{ color: palette.dim }}>cause </span><span style={{ color: palette.fg }}>{o.cause}</span></div>
         <div><span style={{ color: palette.dim }}>started </span><span style={{ color: palette.fg }}>{fmtAgo(o.startedAt)} ago</span></div>
-        <div><span style={{ color: palette.dim }}>etr </span><span style={{ color: palette.fg }}>{fmtTime(o.etr)}</span></div>
+        <div><span style={{ color: palette.dim }}>etr </span><span style={{ color: o.etr < Date.now() ? palette.high : palette.fg }}>{o.etr > Date.now() ? fmtTime(o.etr) : fmtDateTime(o.etr) + ' (overdue)'}</span></div>
       </div>
     </div>
   );

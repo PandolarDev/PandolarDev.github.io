@@ -425,7 +425,7 @@ function IncidentPanel({ outage, onClose, palette }) {
           <DetailCell label="Customers" value={fmtNum(outage.customers)} palette={palette}/>
           <DetailCell label="Cause" value={outage.cause} palette={palette}/>
           <DetailCell label="Started" value={fmtAgo(outage.startedAt) + ' ago'} palette={palette}/>
-          <DetailCell label="ETR" value={fmtTime(outage.etr)} palette={palette}/>
+          <DetailCell label="ETR" value={outage.etr > Date.now() ? fmtTime(outage.etr) : fmtDateTime(outage.etr) + ' (overdue)'} palette={palette}/>
           <DetailCell label="Voltage" value={outage.voltage} palette={palette}/>
           <DetailCell label="Crews" value={outage.crews} palette={palette}/>
         </div>
